@@ -9,10 +9,10 @@ import { FaArrowLeft, FaLink } from "react-icons/fa";
 import { POSTS } from "../../utils/db/dummy";
 import { MdEdit } from "react-icons/md";
 import { IoCalendarOutline } from "react-icons/io5";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { formatMemberSinceDate } from "../../utils/date";
 import Posts from "../../components/common/Posts";
-import toast from "react-hot-toast";
+import useUpdateUserProfile from "../../hooks/useUpdateUserProfile";
 
 const ProfilePage = () => {
   const [coverImg, setCoverImg] = useState(null);
@@ -27,8 +27,6 @@ const ProfilePage = () => {
   const { follow, isPending } = useFollow();
 
   const { data: authUser } = useQuery({ queryKey: ["authUser"] });
-
-  const queryClient = useQueryClient();
 
   const {
     data: user,
@@ -49,37 +47,7 @@ const ProfilePage = () => {
     },
   });
 
-  const { mutate: updateProfile, isPending: isUpdatingProfile } = useMutation({
-    mutationFn: async () => {
-      try {
-        const res = await fetch("/api/users/update", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            coverImg,
-            profileImg,
-          }),
-        });
-        const data = res.json();
-        if (!res.ok) throw new Error(data.error || "Something went wrong!");
-        return data;
-      } catch (error) {
-        throw new Error(error);
-      }
-    },
-    onSuccess: () => {
-      toast.success("Profile updated successfully");
-      Promise.all([queryClient.invalidateQueries({ queryKey: ["authUser"] })]);
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["userProfile"] }),
-      ]);
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+  const { updateProfile, isUpdatingProfile } = useUpdateUserProfile();
 
   const isMyProfile = authUser._id === user?._id;
   const memberSinceDate = formatMemberSinceDate(user?.createdAt);
@@ -184,8 +152,15 @@ const ProfilePage = () => {
                 )}
                 {(coverImg || profileImg) && (
                   <button
-                    className="btn btn-outline rounded-full btn-sm"
-                    onClick={() => updateProfile()}
+                    className="btn btn-primary rounded-full btn-sm text-white px-4 ml-2"
+                    onClick={async () => {
+                      updateProfile({
+                        coverImg,
+                        profileImg,
+                      });
+                      setProfileImg(null);
+                      setCoverImg(null);
+                    }}
                   >
                     {isUpdatingProfile ? "Updating..." : "Update"}
                   </button>
